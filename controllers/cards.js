@@ -73,6 +73,10 @@ const dislikeCard = async (req, res) => {
       { $pull: { likes: req.user._id } },
       { new: true },
     );
+    if (!card) {
+      res.status(ERROR_CODE_NOT_FOUND).send({ message: 'Передан несуществующий id карточки' });
+      return;
+    }
     res.send(card);
   } catch (err) {
     if (err.name === 'CastError') {
