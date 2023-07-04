@@ -18,11 +18,11 @@ const createCard = async (req, res) => {
     const card = await Card.create({ name, link, owner });
     res.send(card);
   } catch (err) {
-    if (err.name === 'CastError') {
+    if (err.name === 'ValidationError') {
       res.status(ERROR_CODE_BAD_REQUEST).json({ message: 'Переданы некорректные данные для создания карточки' });
-      return;
+    } else {
+      res.status(ERROR_CODE_INTERNAL_SERVER_ERROR).send({ message: 'Не удалось создать карточку' });
     }
-    res.status(ERROR_CODE_INTERNAL_SERVER_ERROR).send({ message: 'Не удалось создать карточку' });
   }
 };
 
@@ -31,9 +31,17 @@ const deleteCard = async (req, res) => {
     const { cardId } = req.params;
 
     const card = await Card.findByIdAndRemove(cardId);
+    if (!card) {
+      res.status(ERROR_CODE_NOT_FOUND).send({ message: 'Карточка с указанным id не найдена' });
+      return;
+    }
     res.send(card);
   } catch (err) {
-    res.status(ERROR_CODE_NOT_FOUND).send({ message: 'Карточки с указанным ID не существует' });
+    if (err.name === 'CastError') {
+      res.status(ERROR_CODE_BAD_REQUEST).send({ message: 'Передан некорректный id карточки' });
+    } else {
+      res.status(ERROR_CODE_INTERNAL_SERVER_ERROR).send({ message: 'Карточки с указанным ID не существует' });
+    }
   }
 };
 
@@ -44,13 +52,17 @@ const likeCard = async (req, res) => {
       { $addToSet: { likes: req.user._id } },
       { new: true },
     );
+    if (!card) {
+      res.status(ERROR_CODE_NOT_FOUND).send({ message: 'Передан несуществующий id карточки' });
+      return;
+    }
     res.send(card);
   } catch (err) {
     if (err.name === 'CastError') {
       res.status(ERROR_CODE_BAD_REQUEST).json({ message: 'Переданы некорректные данные для постановки/снятии лайка' });
-      return;
+    } else {
+      res.status(ERROR_CODE_INTERNAL_SERVER_ERROR).send({ message: 'Не удалось изменить карточку' });
     }
-    res.status(ERROR_CODE_INTERNAL_SERVER_ERROR).send({ message: 'Не удалось изменить карточку' });
   }
 };
 
@@ -65,9 +77,9 @@ const dislikeCard = async (req, res) => {
   } catch (err) {
     if (err.name === 'CastError') {
       res.status(ERROR_CODE_BAD_REQUEST).json({ message: 'Переданы некорректные данные для постановки/снятии лайка' });
-      return;
+    } else {
+      res.status(ERROR_CODE_INTERNAL_SERVER_ERROR).send({ message: 'Не удалось изменить карточку' });
     }
-    res.status(ERROR_CODE_INTERNAL_SERVER_ERROR).send({ message: 'Не удалось изменить карточку' });
   }
 };
 
