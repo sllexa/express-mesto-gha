@@ -1,5 +1,11 @@
+const errMongo = require('mongoose').Error;
 const User = require('../models/user');
-const { ERROR_CODE_NOT_FOUND, ERROR_CODE_INTERNAL_SERVER_ERROR, ERROR_CODE_BAD_REQUEST } = require('../utils/errors');
+const {
+  ERROR_CODE_NOT_FOUND,
+  ERROR_CODE_INTERNAL_SERVER_ERROR,
+  ERROR_CODE_BAD_REQUEST,
+  CREATE_CODE_SUCCESS,
+} = require('../utils/constants');
 
 const getUsers = async (req, res) => {
   try {
@@ -19,7 +25,7 @@ const getUser = async (req, res) => {
     }
     res.send(user);
   } catch (err) {
-    if (err.name === 'CastError') {
+    if (err instanceof errMongo.CastError) {
       res.status(ERROR_CODE_BAD_REQUEST).send({ message: 'Переданы некорректные данные' });
     } else {
       res.status(ERROR_CODE_INTERNAL_SERVER_ERROR).send({ message: 'Не удалось найти пользователя' });
@@ -31,9 +37,9 @@ const createUser = async (req, res) => {
   try {
     const { name, about, avatar } = req.body;
     const user = await User.create({ name, about, avatar });
-    res.send(user);
+    res.status(CREATE_CODE_SUCCESS).send(user);
   } catch (err) {
-    if (err.name === 'ValidationError') {
+    if (err instanceof errMongo.ValidationError) {
       res.status(ERROR_CODE_BAD_REQUEST).send({ message: 'Переданы некорректные данные при создании пользователя' });
     } else {
       res.status(ERROR_CODE_INTERNAL_SERVER_ERROR).send({ message: 'Не удалось создать пользователя' });
@@ -51,8 +57,8 @@ const updateUser = async (req, res) => {
     );
     res.send(user);
   } catch (err) {
-    if (err.name === 'ValidationError') {
-      res.status(ERROR_CODE_BAD_REQUEST).json({ message: 'Переданы некорректные данные при обновлении профиля' });
+    if (err instanceof errMongo.ValidationError) {
+      res.status(ERROR_CODE_BAD_REQUEST).send({ message: 'Переданы некорректные данные при обновлении профиля' });
     } else {
       res.status(ERROR_CODE_INTERNAL_SERVER_ERROR).send({ message: 'Не удалось обновить данные' });
     }
@@ -69,8 +75,8 @@ const updateAvatar = async (req, res) => {
     );
     res.send(user);
   } catch (err) {
-    if (err.name === 'ValidationError') {
-      res.status(ERROR_CODE_BAD_REQUEST).json({ message: 'Переданы некорректные данные при обновлении аватара' });
+    if (err instanceof errMongo.ValidationError) {
+      res.status(ERROR_CODE_BAD_REQUEST).send({ message: 'Переданы некорректные данные при обновлении аватара' });
     } else {
       res.status(ERROR_CODE_INTERNAL_SERVER_ERROR).send({ message: 'Не удалось обновить данные' });
     }

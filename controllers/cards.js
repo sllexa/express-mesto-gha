@@ -1,5 +1,11 @@
+const errMongo = require('mongoose').Error;
 const Card = require('../models/card');
-const { ERROR_CODE_BAD_REQUEST, ERROR_CODE_NOT_FOUND, ERROR_CODE_INTERNAL_SERVER_ERROR } = require('../utils/errors');
+const {
+  ERROR_CODE_BAD_REQUEST,
+  ERROR_CODE_NOT_FOUND,
+  ERROR_CODE_INTERNAL_SERVER_ERROR,
+  CREATE_CODE_SUCCESS,
+} = require('../utils/constants');
 
 const getCards = async (req, res) => {
   try {
@@ -16,9 +22,9 @@ const createCard = async (req, res) => {
     const owner = req.user._id;
 
     const card = await Card.create({ name, link, owner });
-    res.send(card);
+    res.status(CREATE_CODE_SUCCESS).send(card);
   } catch (err) {
-    if (err.name === 'ValidationError') {
+    if (err instanceof errMongo.ValidationError) {
       res.status(ERROR_CODE_BAD_REQUEST).json({ message: 'Переданы некорректные данные для создания карточки' });
     } else {
       res.status(ERROR_CODE_INTERNAL_SERVER_ERROR).send({ message: 'Не удалось создать карточку' });
@@ -37,7 +43,7 @@ const deleteCard = async (req, res) => {
     }
     res.send(card);
   } catch (err) {
-    if (err.name === 'CastError') {
+    if (err instanceof errMongo.CastError) {
       res.status(ERROR_CODE_BAD_REQUEST).send({ message: 'Передан некорректный id карточки' });
     } else {
       res.status(ERROR_CODE_INTERNAL_SERVER_ERROR).send({ message: 'Карточки с указанным ID не существует' });
@@ -58,8 +64,8 @@ const likeCard = async (req, res) => {
     }
     res.send(card);
   } catch (err) {
-    if (err.name === 'CastError') {
-      res.status(ERROR_CODE_BAD_REQUEST).json({ message: 'Переданы некорректные данные для постановки/снятии лайка' });
+    if (err instanceof errMongo.CastError) {
+      res.status(ERROR_CODE_BAD_REQUEST).send({ message: 'Переданы некорректные данные для постановки/снятии лайка' });
     } else {
       res.status(ERROR_CODE_INTERNAL_SERVER_ERROR).send({ message: 'Не удалось изменить карточку' });
     }
@@ -79,7 +85,7 @@ const dislikeCard = async (req, res) => {
     }
     res.send(card);
   } catch (err) {
-    if (err.name === 'CastError') {
+    if (err instanceof errMongo.CastError) {
       res.status(ERROR_CODE_BAD_REQUEST).json({ message: 'Переданы некорректные данные для постановки/снятии лайка' });
     } else {
       res.status(ERROR_CODE_INTERNAL_SERVER_ERROR).send({ message: 'Не удалось изменить карточку' });
