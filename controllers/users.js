@@ -1,53 +1,35 @@
 const errMongo = require('mongoose').Error;
 const User = require('../models/user');
-const {
-  ERROR_CODE_NOT_FOUND,
-  ERROR_CODE_INTERNAL_SERVER_ERROR,
-  ERROR_CODE_BAD_REQUEST,
-  CREATE_CODE_SUCCESS,
-} = require('../utils/constants');
 
-const getUsers = async (req, res) => {
+const NotFoundError = require('../utils/errors/NotFoundError');
+const BadRequestError = require('../utils/errors/BadRequestError');
+
+const getUsers = async (req, res, next) => {
   try {
     const users = await User.find({});
     res.send(users);
   } catch (err) {
-    res.status(ERROR_CODE_INTERNAL_SERVER_ERROR).send({ message: 'Не удалось получить пользователей' });
+    next(err);
   }
 };
 
-const getUser = async (req, res) => {
+const getUser = async (req, res, next) => {
   try {
     const user = await User.findById(req.params.userId);
     if (!user) {
-      res.status(ERROR_CODE_NOT_FOUND).send({ message: 'Пользователь по указанному id не найден' });
-      return;
+      throw new NotFoundError('Пользователь по указанному id не найден');
     }
     res.send(user);
   } catch (err) {
     if (err instanceof errMongo.CastError) {
-      res.status(ERROR_CODE_BAD_REQUEST).send({ message: 'Переданы некорректные данные' });
+      next(new BadRequestError('Переданы некорректные данные'));
     } else {
-      res.status(ERROR_CODE_INTERNAL_SERVER_ERROR).send({ message: 'Не удалось найти пользователя' });
+      next(err);
     }
   }
 };
 
-const createUser = async (req, res) => {
-  try {
-    const { name, about, avatar } = req.body;
-    const user = await User.create({ name, about, avatar });
-    res.status(CREATE_CODE_SUCCESS).send(user);
-  } catch (err) {
-    if (err instanceof errMongo.ValidationError) {
-      res.status(ERROR_CODE_BAD_REQUEST).send({ message: 'Переданы некорректные данные при создании пользователя' });
-    } else {
-      res.status(ERROR_CODE_INTERNAL_SERVER_ERROR).send({ message: 'Не удалось создать пользователя' });
-    }
-  }
-};
-
-const updateUser = async (req, res) => {
+const updateUser = async (req, res, next) => {
   try {
     const { name, about } = req.body;
     const user = await User.findByIdAndUpdate(
@@ -58,14 +40,14 @@ const updateUser = async (req, res) => {
     res.send(user);
   } catch (err) {
     if (err instanceof errMongo.ValidationError) {
-      res.status(ERROR_CODE_BAD_REQUEST).send({ message: 'Переданы некорректные данные при обновлении профиля' });
+      next(new BadRequestError('Переданы некорректные данные при обновлении профиля'));
     } else {
-      res.status(ERROR_CODE_INTERNAL_SERVER_ERROR).send({ message: 'Не удалось обновить данные' });
+      next(err);
     }
   }
 };
 
-const updateAvatar = async (req, res) => {
+const updateAvatar = async (req, res, next) => {
   try {
     const { avatar } = req.body;
     const user = await User.findByIdAndUpdate(
@@ -76,17 +58,26 @@ const updateAvatar = async (req, res) => {
     res.send(user);
   } catch (err) {
     if (err instanceof errMongo.ValidationError) {
-      res.status(ERROR_CODE_BAD_REQUEST).send({ message: 'Переданы некорректные данные при обновлении аватара' });
+      next(new BadRequestError('Переданы некорректные данные при обновлении аватара'));
     } else {
-      res.status(ERROR_CODE_INTERNAL_SERVER_ERROR).send({ message: 'Не удалось обновить данные' });
+      next(err);
     }
+  }
+};
+
+const getMe = async (req, res, next) => {
+  try {
+    const user = await User.findOne({ _id: req.user._id });
+    res.send(user);
+  } catch (err) {
+    next(err);
   }
 };
 
 module.exports = {
   getUsers,
   getUser,
-  createUser,
   updateUser,
   updateAvatar,
+  getMe,
 };

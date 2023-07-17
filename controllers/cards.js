@@ -1,22 +1,21 @@
 const errMongo = require('mongoose').Error;
 const Card = require('../models/card');
-const {
-  ERROR_CODE_BAD_REQUEST,
-  ERROR_CODE_NOT_FOUND,
-  ERROR_CODE_INTERNAL_SERVER_ERROR,
-  CREATE_CODE_SUCCESS,
-} = require('../utils/constants');
+const { CREATE_CODE_SUCCESS } = require('../utils/constants');
 
-const getCards = async (req, res) => {
+const NotFoundError = require('../utils/errors/NotFoundError');
+const BadRequestError = require('../utils/errors/BadRequestError');
+const ForbiddenError = require('../utils/errors/ForbiddenError');
+
+const getCards = async (req, res, next) => {
   try {
     const cards = await Card.find({});
     res.send(cards);
   } catch (err) {
-    res.status(ERROR_CODE_INTERNAL_SERVER_ERROR).send({ message: 'Не удалось получить карточки' });
+    next(err);
   }
 };
 
-const createCard = async (req, res) => {
+const createCard = async (req, res, next) => {
   try {
     const { name, link } = req.body;
     const owner = req.user._id;
@@ -25,72 +24,62 @@ const createCard = async (req, res) => {
     res.status(CREATE_CODE_SUCCESS).send(card);
   } catch (err) {
     if (err instanceof errMongo.ValidationError) {
-      res.status(ERROR_CODE_BAD_REQUEST).json({ message: 'Переданы некорректные данные для создания карточки' });
+      next(new BadRequestError('Переданы некорректные данные для создания карточки'));
     } else {
-      res.status(ERROR_CODE_INTERNAL_SERVER_ERROR).send({ message: 'Не удалось создать карточку' });
+      next(err);
     }
   }
 };
 
-const deleteCard = async (req, res) => {
+const deleteCard = async (req, res, next) => {
   try {
     const { cardId } = req.params;
 
-    const card = await Card.findByIdAndRemove(cardId);
+    const card = await Card.findById(cardId);
     if (!card) {
-      res.status(ERROR_CODE_NOT_FOUND).send({ message: 'Карточка с указанным id не найдена' });
-      return;
+      throw new NotFoundError('Карточка с указанным id не найдена');
     }
-    res.send(card);
+    if (card.owner.toString() !== req.user._id) {
+      throw new ForbiddenError('Нельзя удалять чужие карточки');
+    }
+    await Card.findByIdAndRemove(cardId);
+    res.send({ message: 'Карточка удалена' });
   } catch (err) {
     if (err instanceof errMongo.CastError) {
-      res.status(ERROR_CODE_BAD_REQUEST).send({ message: 'Передан некорректный id карточки' });
+      next(new BadRequestError('Передан некорректный id карточки'));
     } else {
-      res.status(ERROR_CODE_INTERNAL_SERVER_ERROR).send({ message: 'Карточки с указанным ID не существует' });
+      next(err);
     }
   }
 };
 
-const likeCard = async (req, res) => {
+const handeleLikeCard = async (req, res, next, options) => {
   try {
+    const action = options.add ? '$addToSet' : '$pull';
     const card = await Card.findByIdAndUpdate(
       req.params.cardId,
-      { $addToSet: { likes: req.user._id } },
+      { [action]: { likes: req.user._id } },
       { new: true },
     );
     if (!card) {
-      res.status(ERROR_CODE_NOT_FOUND).send({ message: 'Передан несуществующий id карточки' });
-      return;
+      throw new NotFoundError('Передан несуществующий id карточки');
     }
     res.send(card);
   } catch (err) {
     if (err instanceof errMongo.CastError) {
-      res.status(ERROR_CODE_BAD_REQUEST).send({ message: 'Переданы некорректные данные для постановки/снятии лайка' });
+      next(new BadRequestError('Переданы некорректные данные для постановки/снятии лайка'));
     } else {
-      res.status(ERROR_CODE_INTERNAL_SERVER_ERROR).send({ message: 'Не удалось изменить карточку' });
+      next(err);
     }
   }
 };
 
-const dislikeCard = async (req, res) => {
-  try {
-    const card = await Card.findByIdAndUpdate(
-      req.params.cardId,
-      { $pull: { likes: req.user._id } },
-      { new: true },
-    );
-    if (!card) {
-      res.status(ERROR_CODE_NOT_FOUND).send({ message: 'Передан несуществующий id карточки' });
-      return;
-    }
-    res.send(card);
-  } catch (err) {
-    if (err instanceof errMongo.CastError) {
-      res.status(ERROR_CODE_BAD_REQUEST).json({ message: 'Переданы некорректные данные для постановки/снятии лайка' });
-    } else {
-      res.status(ERROR_CODE_INTERNAL_SERVER_ERROR).send({ message: 'Не удалось изменить карточку' });
-    }
-  }
+const likeCard = async (req, res, next) => {
+  handeleLikeCard(req, res, next, { add: true });
+};
+
+const dislikeCard = async (req, res, next) => {
+  handeleLikeCard(req, res, next, { add: false });
 };
 
 module.exports = {
