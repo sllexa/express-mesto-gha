@@ -22,10 +22,9 @@ const createUser = async (req, res, next) => {
       name, about, avatar, email, password: hash,
     });
     res.status(CREATE_CODE_SUCCESS).send({
-      data: {
+      user: {
         name, about, avatar, email,
       },
-      message: 'Пользователь успешно создан',
     });
   } catch (err) {
     if (err.code === 11000) {
